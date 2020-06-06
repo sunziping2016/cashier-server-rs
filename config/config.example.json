@@ -1,0 +1,5 @@
+{
+  "bind": "localhost:8000",
+  "db": "mongodb://localhost/cashier",
+  "redis": "redis://localhost/"
+}
