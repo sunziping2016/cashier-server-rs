@@ -3,6 +3,11 @@
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
       <sourceFolder url="file://$MODULE_DIR$/cashier_server/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/proc_macro_for_shell/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/proc_macro_for_shell_impl/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/packages/shell-macro-impl/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/packages/shell-macro/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/packages/cashier-server/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />

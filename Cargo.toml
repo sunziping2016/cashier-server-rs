@@ -1,4 +1,6 @@
 [workspace]
 members = [
-    "cashier_server"
+    "packages/cashier-server",
+    "packages/shell-macro",
+    "packages/shell-macro-impl"
 ]
