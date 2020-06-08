@@ -1,8 +1,9 @@
 use clap::{Arg, App};
+use err_derive::Error;
 use serde::{Serialize, Deserialize};
 use shell_macro::shell;
 use std::ffi::OsString;
-use std::{env, fmt};
+use std::env;
 use std::fs::File;
 use std::path::Path;
 
@@ -11,65 +12,34 @@ pub const BUILD_COMMIT_ID: &str = shell!("git log --format=\"%h\" -n 1");
 pub const BUILD_TIME: &str = shell!("date +%F");
 pub const AUTHORS: &str = shell!("git log --pretty=\"%an <%ae>\" | sort | uniq");
 
-#[derive(Debug)]
-pub enum Error {
-    Io(std::io::Error),
-    Json(serde_json::Error),
-    UnknownSubCommand,
-    MissingDbArgument,
-    MissingRedisArgument,
-    MissingBindArgument,
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Error::Io(ref e) => e.fmt(f),
-            Error::Json(ref e) => e.fmt(f),
-            Error::UnknownSubCommand => write!(f, "unknown command"),
-            Error::MissingDbArgument => write!(f, "missing database argument"),
-            Error::MissingRedisArgument => write!(f, "missing redis argument"),
-            Error::MissingBindArgument => write!(f, "missing bind argument"),
-        }
-    }
-}
-
-impl std::error::Error for Error {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Error::Io(ref e) => Some(e),
-            Error::Json(ref e) => Some(e),
-            _ => None,
-        }
-    }
-}
-
-impl From<std::io::Error> for Error {
-    fn from(err: std::io::Error) -> Self {
-        Self::Io(err)
-    }
-}
-
-impl From<serde_json::Error> for Error {
-    fn from(err: serde_json::Error) -> Self {
-        Self::Json(err)
-    }
+#[derive(Debug, Error)]
+pub enum ConfigError {
+    #[error(display = "{}", _0)]
+    Io(#[error(source)] #[error(from)] std::io::Error),
+    #[error(display = "{}", _0)]
+    Json(#[error(source)] #[error(from)] serde_json::Error),
+    #[error(display = "invalid subcommand")]
+    InvalidSubcommand,
+    #[error(display = "missing {} argument", _0)]
+    MissingArgument(String),
 }
 
 #[derive(Debug)]
 pub struct InitConfig {
-    db: String,
-    redis: String,
-    reset: bool,
-    superuser_username: Option<String>,
-    superuser_password: Option<String>,
+    pub db: String,
+    pub db_name: String,
+    pub redis: String,
+    pub reset: bool,
+    pub superuser_username: Option<String>,
+    pub superuser_password: Option<String>,
 }
 
 #[derive(Debug)]
 pub struct StartConfig {
-    db: String,
-    redis: String,
-    bind: String,
+    pub db: String,
+    pub db_name: String,
+    pub redis: String,
+    pub bind: String,
 }
 
 #[derive(Debug)]
@@ -81,6 +51,8 @@ pub enum Config {
 #[derive(Serialize, Deserialize)]
 pub struct ConfigFile {
     db: Option<String>,
+    #[serde(rename = "dbName")]
+    db_name: Option<String>,
     redis: Option<String>,
     bind: Option<String>,
 }
@@ -89,23 +61,24 @@ impl ConfigFile {
     pub fn new() -> Self {
         ConfigFile {
             db: None,
+            db_name: None,
             redis: None,
             bind: None,
         }
     }
 
-    pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+    pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, ConfigError> {
         let json = File::open(path)?;
         Ok(serde_json::from_reader(&json)?)
     }
 }
 
 impl Config {
-    pub fn from_env() -> Result<Self, Error> {
+    pub fn from_env() -> Result<Self, ConfigError> {
         Self::from(&mut env::args_os())
     }
 
-    pub fn from<I, T>(itr: I) -> Result<Self, Error>
+    pub fn from<I, T>(itr: I) -> Result<Self, ConfigError>
         where
             I: IntoIterator<Item = T>,
             T: Into<OsString> + Clone,
@@ -126,6 +99,11 @@ impl Config {
                 .value_name("URL")
                 .about("Sets the MongoDB connection")
                 .takes_value(true))
+            .arg(Arg::with_name("db-name")
+                .long("db-name")
+                .value_name("NAME")
+                .about("Sets the MongoDB database")
+                .takes_value(true))
             .arg(Arg::with_name("redis")
                 .long("redis")
                 .value_name("URL")
@@ -140,7 +118,7 @@ impl Config {
                 .about("Initializes all databases")
                 .arg(Arg::with_name("reset")
                     .long("reset")
-                    .about("Clears all databases before initialization"))
+                    .about("Clears all databases before initialization. THIS IS DANGEROUS"))
                 .arg(Arg::with_name("superuser-username")
                     .long("superuser-username")
                     .value_name("USERNAME")
@@ -159,22 +137,25 @@ impl Config {
             config_file = ConfigFile::load(path)?;
         }
         config_file.db = config_file.db.or(matches.value_of("db").map(String::from));
+        config_file.db_name = config_file.db_name.or(matches.value_of("db-name").map(String::from));
         config_file.redis = config_file.redis.or(matches.value_of("redis").map(String::from));
         config_file.bind = config_file.bind.or(matches.value_of("bind").map(String::from));
         match matches.subcommand() {
             ("init", Some(sub_matches)) => Ok(Config::Init(InitConfig {
-                db: config_file.db.ok_or_else(|| Error::MissingDbArgument)?,
-                redis: config_file.redis.ok_or_else(|| Error::MissingRedisArgument)?,
+                db: config_file.db.ok_or_else(|| ConfigError::MissingArgument("database".into()))?,
+                db_name: config_file.db_name.ok_or_else(|| ConfigError::MissingArgument("database name".into()))?,
+                redis: config_file.redis.ok_or_else(|| ConfigError::MissingArgument("redis".into()))?,
                 reset: sub_matches.is_present("reset"),
                 superuser_username: sub_matches.value_of("superuser-username").map(String::from),
                 superuser_password: sub_matches.value_of("superuser-password").map(String::from),
             })),
             ("start", Some(_)) => Ok(Config::Start(StartConfig {
-                db: config_file.db.ok_or_else(|| Error::MissingDbArgument)?,
-                redis: config_file.redis.ok_or_else(|| Error::MissingRedisArgument)?,
-                bind: config_file.bind.ok_or_else(|| Error::MissingBindArgument)?,
+                db: config_file.db.ok_or_else(|| ConfigError::MissingArgument("database".into()))?,
+                db_name: config_file.db_name.ok_or_else(|| ConfigError::MissingArgument("database name".into()))?,
+                redis: config_file.redis.ok_or_else(|| ConfigError::MissingArgument("redis".into()))?,
+                bind: config_file.bind.ok_or_else(|| ConfigError::MissingArgument("bind".into()))?,
             })),
-            _ => panic!("every subcommand is processed. should not reach here")
+            _ => Err(ConfigError::InvalidSubcommand)
         }
     }
 }
