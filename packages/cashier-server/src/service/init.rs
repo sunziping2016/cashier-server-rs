@@ -1,7 +1,8 @@
 use crate::config::InitConfig;
-use super::constants::{
+use crate::constants::{
     PERMISSION_COLLECTION, ROLE_COLLECTION, USER_COLLECTION, TOKEN_COLLECTION,
-    BCRYPT_COST};
+    GLOBAL_SETTINGS_COLLECTION,
+    JWT_SECRET_LENGTH, BCRYPT_COST};
 use super::predefined;
 use bson::{doc, bson};
 use err_derive::Error;
@@ -256,6 +257,34 @@ pub async fn do_init_token(config: &InitConfig, db: &mongodb::Database) -> Resul
     Ok(())
 }
 
+pub async fn do_init_global_settings(config: &InitConfig, db: &mongodb::Database) -> Result<()> {
+    let global_settings = db.collection(GLOBAL_SETTINGS_COLLECTION);
+    if config.reset {
+        global_settings.drop(None).await?;
+        info!("dropped collection {}", GLOBAL_SETTINGS_COLLECTION);
+    }
+    let current_time = chrono::Utc::now();
+    let jwt_secret: Vec<u8> = (0..JWT_SECRET_LENGTH).map(|_| { rand::random::<u8>() }).collect();
+    let result = global_settings.update_one(doc! {}, doc! {
+        "$set": {
+            "updatedAt": current_time,
+        },
+        "$setOnInsert": {
+            "jwtSecret": bson::Binary {
+                subtype: bson::spec::BinarySubtype::Generic,
+                bytes: jwt_secret,
+            },
+            "createdAt": current_time,
+        },
+    }, mongodb::options::UpdateOptions::builder().upsert(true).build()).await?;
+    let created = if let Some(_) = result.upserted_id {1} else {0};
+    let modified = result.modified_count;
+    if created != 0 || modified != 0 {
+        info!("create {} document(s) and modify {} document(s) on {}", created, modified, GLOBAL_SETTINGS_COLLECTION);
+    }
+    Ok(())
+}
+
 pub async fn do_init(config: &InitConfig) -> Result<()> {
     let mut client_options = ClientOptions::parse(&config.db).await?;
     client_options.app_name = Some("Cashier Server".into());
@@ -266,5 +295,6 @@ pub async fn do_init(config: &InitConfig) -> Result<()> {
     do_init_role(config, &db).await?;
     do_init_user(config, &db).await?;
     do_init_token(config, &db).await?;
+    do_init_global_settings(config, &db).await?;
     Ok(())
 }

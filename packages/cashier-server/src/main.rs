@@ -7,7 +7,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let config = Config::from_env()?;
     match config {
         Config::Init(init_config) => service::init::do_init(&init_config).await?,
-        Config::Start(_start_config) => unimplemented!(),
+        Config::Start(start_config) => service::start::do_start(&start_config).await?,
     }
     Ok(())
 }

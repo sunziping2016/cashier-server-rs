@@ -41,8 +41,10 @@ pub const PREDEFINED_PERMISSIONS: &[PredefinedPermission] = &[
     PredefinedPermission("token", "revoke-self", "Revoke Self Token", "Revoke all user's own tokens via DELETE /api/tokens/users/me"),
     PredefinedPermission("token", "list", "List Token", "List all the tokens belong to a user via GET /api/tokens/users/:uid"),
     PredefinedPermission("token", "list-self", "List Self Token", "List all user's own tokens tokens via GET /api/tokens/users/me"),
-    PredefinedPermission("token", "revoke-single", "Revoke Single Token", "Revoke one token belong to a user via DELETE /api/token/users/:uid/jti/:jti"),
-    PredefinedPermission("token", "revoke-single-self", "Revoke Single Self Token", "Revoke user's own token via DELETE /api/token/users/me/jti/:jti")
+    PredefinedPermission("token", "read-single", "Read Single Token", "Read the information of a token via GET /api/tokens/jwt/:jti"),
+    PredefinedPermission("token", "revoke-single", "Revoke Single Token", "Revoke one token belong to a user via DELETE /api/tokens/jwt/:jti"),
+    PredefinedPermission("token", "read-single-self", "Read Single Self Token", "Read the information of a token via GET /api/tokens/jwt-me/:jti"),
+    PredefinedPermission("token", "revoke-single-self", "Revoke Single Self Token", "Revoke user's own token via DELETE /api/tokens/jwt-me/:jti")
 ];
 
 pub struct PredefinedRole(
@@ -81,6 +83,8 @@ pub const PREDEFINED_ROLES: &[PredefinedRole] = &[
         ("user", "update-self"),
         ("user-permission", "read-self"),
         ("token", "revoke-self"),
+        ("token", "list-self"),
+        ("token", "read-single-self"),
         ("token", "revoke-single-self"),
     ], "Normal User", "Manage users's own information", true),
     PredefinedRole("default", &[

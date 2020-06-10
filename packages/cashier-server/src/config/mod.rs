@@ -34,7 +34,7 @@ pub struct InitConfig {
     pub superuser_password: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StartConfig {
     pub db: String,
     pub db_name: String,

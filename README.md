@@ -43,6 +43,7 @@ All fields are required.
 |nickname|String|the nickname of the user|false|
 |avatar|String|path to the avatar|false|
 |avatar128|String|path to a square 128x128 avatar|false|
+|blocked|Boolean|whether the user is blocked|false|
 |createdAt|Date|the time to create the user|true|
 |updatedAt|Date|last time to update the user|true|
 |deleted|Boolean|whether the user is deleted|true|
@@ -52,8 +53,21 @@ All fields are required.
 |Key|Type|Description|
 |---|---|---|
 |user|ObjectId|user who owns the token|
-|createdAt|Date|the time to create the token|
+|issuedAt|Date|the time to create the token|
 |expiresAt|Date|the time when the token expires|
-|acquireMethod|Date|method to acquire the token|
+|acquireMethod|String|method to acquire the token|
+|invoked|bool|whether jwt is invoked|
+
+All fields are required.
+
+### 1.5 Global Settings
+
+There should exists one single document in `globalSettings` document.
+
+|Key|Type|Description|
+|---|---|---|
+|jwtSecret|Binary|256-byte random secret for JWT|
+|createdAt|Date|the time to create the global settings|
+|updatedAt|Date|last time to update the global settings|
 
 All fields are required.
