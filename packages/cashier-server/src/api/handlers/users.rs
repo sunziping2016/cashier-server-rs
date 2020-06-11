@@ -48,11 +48,13 @@ async fn create_user(
             "$or": [
                  {"username": &request.username},
                  {"email": email},
-            ]
+            ],
+            "deleted": false,
         }
     } else {
         doc! {
             "username": &request.username,
+            "deleted": false,
         }
     };
     if let Some(duplicated_user) = app_data.db.collection(crate::constants::USER_COLLECTION)
@@ -81,7 +83,7 @@ async fn create_user(
         "roles": &roles,
         "createdAt": &current,
         "updatedAt": &current,
-        "deleted": true,
+        "deleted": false,
     };
     if let Some(ref email) = request.email {
         document.insert("email", email);
