@@ -29,6 +29,15 @@ pub const PREDEFINED_PERMISSIONS: &[PredefinedPermission] = &[
     PredefinedPermission("user", "update-self", "Update Self User", "Update user's own information via PATCH /api/users/me"),
     PredefinedPermission("user", "delete", "Delete User", "Delete a user via DELETE /api/users/:id"),
     PredefinedPermission("user", "delete-self", "Delete Self User", "Delete user's own account via DELETE /api/users/me"),
+    // CRUD for user's public information
+    PredefinedPermission("user-public", "read", "Read User Public", "Read the public information of a user via GET /api/users/public/:id"),
+    PredefinedPermission("user-public", "list", "List User Public", "List all the users matching criteria with public information via GET /api/users/public"),
+    // CRUD for user's password
+    PredefinedPermission("user-password", "update", "Update Self User Password", "Update user's password via POST /api/users/:id/password"),
+    PredefinedPermission("user-password", "update-self", "Update Self User Password", "Update user's password via POST /api/users/me/password"),
+    // CRUD for user's avatar
+    PredefinedPermission("user-avatar", "update", "Update Self User Avatar", "Update user's avatar via POST /api/users/:id/avatar"),
+    PredefinedPermission("user-avatar", "update-self", "Update Self User Avatar", "Update user's avatar via POST /api/users/me/avatar"),
     // CRUD for user's permission
     PredefinedPermission("user-permission", "read", "Read User's Permission", "Read user's permissions via GET /api/users/:id/permissions"),
     PredefinedPermission("user-permission", "read-default", "Read Default User's Permission", "Read default user's permissions via GET /api/users/default/permissions"),
@@ -43,8 +52,8 @@ pub const PREDEFINED_PERMISSIONS: &[PredefinedPermission] = &[
     PredefinedPermission("token", "list-self", "List Self Token", "List all user's own tokens tokens via GET /api/tokens/users/me"),
     PredefinedPermission("token", "read-single", "Read Single Token", "Read the information of a token via GET /api/tokens/jwt/:jti"),
     PredefinedPermission("token", "revoke-single", "Revoke Single Token", "Revoke one token belong to a user via DELETE /api/tokens/jwt/:jti"),
-    PredefinedPermission("token", "read-single-self", "Read Single Self Token", "Read the information of a token via GET /api/tokens/jwt-me/:jti"),
-    PredefinedPermission("token", "revoke-single-self", "Revoke Single Self Token", "Revoke user's own token via DELETE /api/tokens/jwt-me/:jti")
+    PredefinedPermission("token", "read-single-self", "Read Single Self Token", "Read the information of a token via GET /api/tokens/my-jwt/:jti"),
+    PredefinedPermission("token", "revoke-single-self", "Revoke Single Self Token", "Revoke user's own token via DELETE /api/tokens/my-jwt/:jti")
 ];
 
 pub struct PredefinedRole(
@@ -75,13 +84,20 @@ pub const PREDEFINED_ROLES: &[PredefinedRole] = &[
         ("user", "read"),
         ("user", "list"),
         ("user", "update"),
+        ("user-password", "update"),
+        ("user-avatar", "update"),
         ("user", "delete"),
         ("user-permission", "read"),
     ], "Administrator for Users", "Manage users", false),
     PredefinedRole("normal-user", &[
         ("user", "read-self"),
         ("user", "update-self"),
+        ("user-public", "read"),
+        ("user-public", "list"),
+        ("user-password", "update-self"),
+        ("user-avatar", "update-self"),
         ("user-permission", "read-self"),
+        ("token", "resume"),
         ("token", "revoke-self"),
         ("token", "list-self"),
         ("token", "read-single-self"),
@@ -90,7 +106,6 @@ pub const PREDEFINED_ROLES: &[PredefinedRole] = &[
     PredefinedRole("default", &[
         ("token", "acquire-by-username"),
         ("token", "acquire-by-email"),
-        ("token", "resume"),
     ], "Default", "Every user including not logged-in ones implicitly has this role", false),
 ];
 

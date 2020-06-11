@@ -34,19 +34,23 @@ All fields are required.
 
 ### 1.3 Users
 
-|Key|Type|Description|Required|
-|---|---|---|---|
-|username|String|the username of the user|true|
-|password|String|the password of the user|true|
-|roles|Array\<ObjectId\>|the roles of the user|true|
-|email|String|the email of the user|false|
-|nickname|String|the nickname of the user|false|
-|avatar|String|path to the avatar|false|
-|avatar128|String|path to a square 128x128 avatar|false|
-|blocked|Boolean|whether the user is blocked|false|
-|createdAt|Date|the time to create the user|true|
-|updatedAt|Date|last time to update the user|true|
-|deleted|Boolean|whether the user is deleted|true|
+|Key|Type|Description|Required|Public|
+|---|---|---|---|---|
+|username|String|the username of the user|true|true|
+|password|String|the password of the user|true|false|
+|roles|Array\<ObjectId\>|the roles of the user|true|false|
+|email|String|the email of the user|false|false|
+|nickname|String|the nickname of the user|false|true|
+|avatar|String|path to the avatar|false|true|
+|avatar128|String|path to a square 128x128 avatar|false|true|
+|blocked|Boolean|whether the user is blocked|false|false|
+|createdAt|Date|the time to create the user|true|true|
+|updatedAt|Date|last time to update the user|true|false|
+|deleted|Boolean|whether the user is deleted|true|false|
+
+User's public information can be accessed via `/api/v1/users/public`. `password` is never accessible.
+
+`username` and `email` should be unique.
 
 ### 1.4 Tokens
 

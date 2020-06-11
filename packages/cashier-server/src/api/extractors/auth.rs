@@ -4,9 +4,14 @@ use futures::{
     future::{BoxFuture, FutureExt},
     stream::StreamExt,
 };
-use crate::api::errors::ApiError;
+use crate::{
+    internal_server_error,
+    api::{
+        errors::ApiError,
+        app_state::AppState,
+    }
+};
 use serde::{Serialize, Deserialize};
-use crate::api::app_state::AppState;
 use bson::doc;
 use jsonwebtoken::{decode, DecodingKey, Validation};
 use std::convert::TryFrom;
@@ -60,6 +65,7 @@ impl TryFrom<bson::Document> for Permission {
     type Error = bson::document::ValueAccessError;
 
     fn try_from(value: bson::Document) -> Result<Self, Self::Error> {
+        println!("Permission {:?}", value);
         Ok(Self {
             id: value.get_object_id("_id")?.clone(),
             subject: value.get_str("subject")?.to_owned(),
@@ -77,6 +83,7 @@ impl TryFrom<bson::Document> for Role {
 
     //noinspection DuplicatedCode
     fn try_from(value: bson::Document) -> Result<Self, Self::Error> {
+        println!("Role {:?}", value);
         Ok(Self {
             id: value.get_object_id("_id")?.clone(),
             name: value.get_str("name")?.to_owned(),
@@ -98,6 +105,7 @@ impl TryFrom<bson::Document> for User {
 
     //noinspection ALL
     fn try_from(value: bson::Document) -> Result<Self, Self::Error> {
+        println!("User {:?}", value);
         Ok(Self {
             id: value.get_object_id("_id")?.clone(),
             username: value.get_str("username")?.to_owned(),
@@ -152,7 +160,7 @@ impl FromRequest for Auth {
         let app_data = if let Some(st) = req.app_data::<web::Data<AppState>>() {
             st.clone()
         } else {
-            return futures::future::err(ApiError::InternalServerError).boxed();
+            return futures::future::err(internal_server_error!()).boxed();
         };
         // Fetch header
         let auth = if let Some(header) = req.headers().get("Authorization") {
@@ -172,8 +180,8 @@ impl FromRequest for Auth {
                 let secret = get_jwt_secret(&app_data.db).await?;
                 let claims = decode::<JwtClaims>(&token, &DecodingKey::from_secret(&secret), &Validation::default())
                     .map_err(|err| ApiError::InvalidToken { error: format!("{:?}", err.into_kind()) })?.claims;
-                let jti = bson::oid::ObjectId::with_string(&claims.jti).map_err(|_| ApiError::InternalServerError)?;
-                let uid = bson::oid::ObjectId::with_string(&claims.uid).map_err(|_| ApiError::InternalServerError)?;
+                let jti = bson::oid::ObjectId::with_string(&claims.jti).map_err(|e| internal_server_error!(e))?;
+                let uid = bson::oid::ObjectId::with_string(&claims.uid).map_err(|e| internal_server_error!(e))?;
                 let jwt_doc = app_data.db.collection(crate::constants::TOKEN_COLLECTION)
                     .find_one(doc! {
                         "_id": &jti,
@@ -183,10 +191,11 @@ impl FromRequest for Auth {
                         "acquireMethod": 1,
                     }).build())
                     .await
-                    .map_err(|_| ApiError::InternalServerError)?
+                    .map_err(|e| internal_server_error!(e))?
                     .ok_or_else(|| ApiError::InvalidToken { error: "TokenRevoked".into() })?;
+                println!("Jwt {:#?}", jwt_doc);
                 let acquire_method = jwt_doc.get_str("acquireMethod")
-                    .map_err(|_| ApiError::InternalServerError)?
+                    .map_err(|e| internal_server_error!(e))?
                     .to_owned();
                 Some(Jwt {
                     jti,
@@ -204,9 +213,9 @@ impl FromRequest for Auth {
                         "deleted": false,
                     }, None)
                     .await
-                    .map_err(|_| ApiError::InternalServerError)?
+                    .map_err(|e| internal_server_error!(e))?
                     .ok_or_else(|| ApiError::InvalidToken { error: "InvalidUser".into() })?
-                ).map_err(|_| ApiError::InternalServerError)?)
+                ).map_err(|e| internal_server_error!(e))?)
             } else { None };
             if let Some(User { blocked, .. }) = user {
                 if blocked {
@@ -221,8 +230,8 @@ impl FromRequest for Auth {
                     "deleted": false,
                 }, None)
                 .await
-                .map_err(|_| ApiError::InternalServerError)? {
-                roles.push(Role::try_from(default_role).map_err(|_| ApiError::InternalServerError)?);
+                .map_err(|e| internal_server_error!(e))? {
+                roles.push(Role::try_from(default_role).map_err(|e| internal_server_error!(e))?);
             }
             // Fetch roles
             if let Some(User { roles: ref role_ids, .. }) = user {
@@ -233,11 +242,11 @@ impl FromRequest for Auth {
                         "deleted": false,
                     }, None)
                         .await
-                        .map_err(|_| ApiError::InternalServerError)?;
+                        .map_err(|e| internal_server_error!(e))?;
                     while let Some(doc) = cursor.next().await {
                         roles.push(
-                            Role::try_from(doc.map_err(|_| ApiError::InternalServerError)?)
-                                .map_err(|_| ApiError::InternalServerError)?
+                            Role::try_from(doc.map_err(|e| internal_server_error!(e))?)
+                                .map_err(|e| internal_server_error!(e))?
                         );
                     }
                 }
@@ -256,11 +265,11 @@ impl FromRequest for Auth {
                         "deleted": false,
                     }, None)
                     .await
-                    .map_err(|_| ApiError::InternalServerError)?;
+                    .map_err(|e| internal_server_error!(e))?;
                 while let Some(doc) = cursor.next().await {
                     permissions.push(
-                        Permission::try_from(doc.map_err(|_| ApiError::InternalServerError)?)
-                            .map_err(|_| ApiError::InternalServerError)?
+                        Permission::try_from(doc.map_err(|e| internal_server_error!(e))?)
+                            .map_err(|e| internal_server_error!(e))?
                     );
                 }
             }
@@ -283,15 +292,17 @@ pub struct JwtClaims {
 }
 
 pub async fn get_jwt_secret(db: &mongodb::Database) -> std::result::Result<Vec<u8>, ApiError> {
-    Ok(db.collection(crate::constants::GLOBAL_SETTINGS_COLLECTION)
+    let doc = db.collection(crate::constants::GLOBAL_SETTINGS_COLLECTION)
         .find_one(doc! {}, mongodb::options::FindOneOptions::builder().projection(doc! {
             "jwtSecret": 1,
             "_id": 0,
         }).build())
         .await
-        .map_err(|_| ApiError::InternalServerError)?
-        .ok_or_else(|| ApiError::InternalServerError)?
+        .map_err(|e| internal_server_error!(e))?
+        .ok_or_else(|| internal_server_error!())?;
+    println!("Settings {:#?}", doc);
+    Ok(doc
         .get_binary_generic("jwtSecret")
-        .map_err(|_| ApiError::InternalServerError)?
+        .map_err(|e| internal_server_error!(e))?
         .clone())
 }
