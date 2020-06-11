@@ -17,11 +17,14 @@ pub enum ApiError {
     UserBlocked,
     #[error(display = "invalid authorization header")]
     InvalidAuthorizationHeader,
-    #[error(display = "token revoked")]
-    TokenRevoked,
     #[error(display = "invalid token causing by {}", error)]
     InvalidToken {
         error: String,
+    },
+    #[error(display = "permission denied, requires {} {} permission", action, subject)]
+    PermissionDenied {
+        subject: String,
+        action: String,
     }
 }
 
@@ -40,8 +43,8 @@ impl From<ApiError> for ApiErrorWrapper {
             ApiError::WrongUserOrPassword
             | ApiError::UserBlocked
             | ApiError::InvalidAuthorizationHeader
-            | ApiError::TokenRevoked
             | ApiError::InvalidToken {..} => 401,
+            ApiError::PermissionDenied {..} => 403,
         };
         ApiErrorWrapper {
             code,
@@ -61,9 +64,10 @@ impl ResponseError for ApiError {
             ApiError::WrongUserOrPassword
             | ApiError::UserBlocked
             | ApiError::InvalidAuthorizationHeader
-            | ApiError::TokenRevoked
             | ApiError::InvalidToken {..} =>
                 HttpResponse::Unauthorized().json(ApiErrorWrapper::from(self.clone())),
+            ApiError::PermissionDenied {..} =>
+                HttpResponse::Forbidden().json(ApiErrorWrapper::from(self.clone())),
         }
     }
 }

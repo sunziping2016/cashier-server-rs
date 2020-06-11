@@ -145,6 +145,7 @@ pub async fn do_init_role(config: &InitConfig, db: &mongodb::Database) -> Result
         }
         let result = roles.update_one(doc! {
             "name": item.0,
+            "deleted": false,
         }, doc! {
             "$set": {
                 "permissions": results,
@@ -222,7 +223,7 @@ pub async fn do_init_user(config: &InitConfig, db: &mongodb::Database) -> Result
             "deleted": false,
         }, doc! {
             "$set": {
-                "permissions": results,
+                "roles": results,
                 "password": superuser_password,
                 "updatedAt": current_time,
             },

@@ -21,8 +21,9 @@ pub struct AcquireTokenByUsernameRequest {
 pub async fn acquire_token_by_username(
     app_data: web::Data<AppState>,
     request: web::Json<AcquireTokenByUsernameRequest>,
-    _auth: Auth,
+    auth: Auth,
 ) -> ApiResult<TokenAcquiredResponse> {
+    auth.try_permission("token", "acquire-by-username")?;
     // Verify username and password
     let user = app_data.db.collection(crate::constants::USER_COLLECTION)
         .find_one(doc! {
